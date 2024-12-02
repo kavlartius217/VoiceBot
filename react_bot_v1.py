@@ -13,7 +13,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain.prompts import PromptTemplate
-from langchain_community.tools.retriever import create_retriever_tool
+from langchain.tools.retriever import create_retriever_tool
 
 # Page configuration
 st.set_page_config(
