@@ -1,6 +1,6 @@
 setuptools
 streamlit==1.40.0
-openai==0.27.8
+openai>=1.6.1
 gtts==2.4.0
 langchain==0.0.254
 langchain-community==0.0.10
