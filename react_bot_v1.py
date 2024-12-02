@@ -205,7 +205,7 @@ with col1:
                     llm=llm,
                     handle_parsing_errors=True,
                     verbose=True,
-                    max_iterations=15
+                    max_iterations=30
                 )
 
                 with st.spinner("🤔 Processing your request..."):
