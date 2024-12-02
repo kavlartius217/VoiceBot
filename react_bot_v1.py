@@ -92,6 +92,20 @@ def text_to_speech(text):
         st.error(f"Text-to-speech error: {str(e)}")
         return None
 
+# Function to create agent executor with optimized settings
+def create_agent_executor(llm, tools, prompt):
+    agent = create_react_agent(llm, tools, prompt)
+    return AgentExecutor(
+        agent=agent,
+        tools=tools,
+        llm=llm,
+        handle_parsing_errors=True,
+        verbose=True,
+        max_iterations=5,  # Reduced iterations
+        early_stopping_method="generate",
+        timeout=10  # 10 second timeout
+    )
+
 # Main UI
 st.markdown("<h1>🍽️ LeChateau Reservation Bot</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subheader'>Welcome to our voice-enabled reservation system</p>", unsafe_allow_html=True)
@@ -177,59 +191,71 @@ with col1:
 
                 tools = [tool1, tool2]
 
-                # Define prompt
+                # Updated prompt template
                 prompt = PromptTemplate(
                     input_variables=['agent_scratchpad', 'input', 'tool_names', 'tools'],
-                    template='''You are an AI assistant managing reservations at LeChateau restaurant. When the guest greets you, you shall also greet the guest and use say_hello_tool for this task. When a guest requests a reservation, use the reservation_data tool to check available tables for the specified time and number of people. Present all available tables with their specific locations (e.g., "Table 4 by the window", "Table 7 in the garden area"). After displaying options, let the guest choose their preferred table and confirm their booking immediately.
+                    template='''You are an AI assistant managing reservations at LeChateau restaurant. Your primary tasks are:
+1. Greet guests using the say_hello_tool when they greet you
+2. Handle reservation requests using the reservation_data tool
+3. Keep responses concise and direct
 
-                    {tools}
+For reservations:
+- Check available tables for the specified time and people count
+- Show available tables with their locations
+- Ask for table preference
+- Confirm booking
 
-                    Follow this one-step-at-time format:
-                    Question: {input}
-                    Thought: [ONE simple thought about what to do next]
-                    Action: [ONE tool from {tool_names}]
-                    Action Input: [Just the input value without variable names or equals signs]
-                    Observation: [Tool's response]
-                    Thought: [ONE simple thought about the observation]
-                    Final Answer: [Response to guest]
+{tools}
 
-                    Question: {input}
-                    Thought:{agent_scratchpad}'''
+Use this format:
+Question: {input}
+Thought: [Brief thought about next action]
+Action: [Tool name from {tool_names}]
+Action Input: [Input value]
+Observation: [Tool response]
+Thought: [Brief thought about result]
+Final Answer: [Concise response to guest]
+
+Question: {input}
+Thought:{agent_scratchpad}'''
                 )
 
-                # Create agent
-                agent = create_react_agent(llm, tools, prompt)
-                agent_exec = AgentExecutor(
-                    agent=agent,
-                    tools=tools,
-                    llm=llm,
-                    handle_parsing_errors=True,
-                    verbose=True,
-                    max_iterations=30
-                )
+                # Process request with error handling
+                try:
+                    agent_exec = create_agent_executor(llm, tools, prompt)
+                    with st.spinner("🤔 Processing your request..."):
+                        try:
+                            bot_response = agent_exec.invoke({
+                                "input": customer_input,
+                                "chat_history": st.session_state.get('chat_history', [])
+                            })
+                            response_text = bot_response.get('output', "I apologize, but I couldn't process your request. Could you please rephrase it?")
+                        except TimeoutError:
+                            response_text = "I apologize for the delay. Could you please simplify your request or break it into smaller parts?"
+                        except Exception as e:
+                            response_text = "I encountered an issue while processing your request. Please try again with a simpler query."
+                            st.error(f"Processing error: {str(e)}")
+                        
+                        # Update chat history
+                        if 'chat_history' not in st.session_state:
+                            st.session_state.chat_history = []
+                        
+                        st.session_state.chat_history.append({
+                            "user": customer_input,
+                            "bot": response_text
+                        })
+                        
+                        st.markdown(f"<div class='chat-message bot-message'>🤖 Bot: {response_text}</div>", unsafe_allow_html=True)
 
-                with st.spinner("🤔 Processing your request..."):
-                    bot_response = agent_exec.invoke({
-                        "input": customer_input,
-                        "chat_history": st.session_state.get('chat_history', [])
-                    })
-                    
-                    # Update chat history
-                    if 'chat_history' not in st.session_state:
-                        st.session_state.chat_history = []
-                    
-                    st.session_state.chat_history.append({
-                        "user": customer_input,
-                        "bot": bot_response['output']
-                    })
+                        # Generate speech response
+                        with st.spinner("🔊 Generating voice response..."):
+                            speech_file = text_to_speech(response_text)
+                            if speech_file:
+                                st.audio(speech_file, format="audio/mp3")
+                                os.unlink(speech_file)
 
-                st.markdown(f"<div class='chat-message bot-message'>🤖 Bot: {bot_response['output']}</div>", unsafe_allow_html=True)
-
-                with st.spinner("🔊 Generating voice response..."):
-                    speech_file = text_to_speech(bot_response['output'])
-                    if speech_file:
-                        st.audio(speech_file, format="audio/mp3")
-                        os.unlink(speech_file)
+                except Exception as e:
+                    st.markdown(f"<div class='status-message error'>❌ System Error: {str(e)}</div>", unsafe_allow_html=True)
 
             except Exception as e:
                 st.markdown(f"<div class='status-message error'>❌ Error: {str(e)}</div>", unsafe_allow_html=True)
