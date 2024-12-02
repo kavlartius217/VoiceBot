@@ -154,7 +154,7 @@ with col1:
             )
 
             # Load CSV data
-            csv_path = "/content/table_data (1).csv"
+            csv_path = "table_data (1).csv"
             if not os.path.exists(csv_path):
                 st.markdown("<div class='status-message error'>❌ Restaurant data not found!</div>", unsafe_allow_html=True)
                 st.stop()
