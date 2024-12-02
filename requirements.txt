@@ -1,8 +1,8 @@
 setuptools
-streamlit==1.40.0
-openai>=1.6.1
-gtts==2.4.0
-langchain==0.0.254
-langchain-community==0.0.10
-langchain-openai==0.0.2
-faiss-cpu==1.7.4
+streamlit
+openai
+gtts
+langchain
+langchain-community
+langchain-openai
+faiss-cpu
